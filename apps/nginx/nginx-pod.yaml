@@ -1,0 +1,15 @@
+apiVersion: v1 # Pod를 쓸 때는 이걸 써줘야 함.
+kind: Pod # 여러 리소스가 있는데, 그 중에서도 pod
+
+metadata:
+  name: nginx-pod
+
+# pod 내부에 대한 세부정보
+spec:
+  containers: # pod에 들어가는 컨테이너 정보
+    - name: nginx-container
+      image: nginx:latest # 컨테이너를 띄우기 위한 이미지:태그(태그는 생략 가능)
+
+      # 컨테이너를 띄우는 포트 번호 문서화(명시) => 가독성을 위함. 작동에는 영향X
+      ports:
+        - containerPort: 80
