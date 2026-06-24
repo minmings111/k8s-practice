@@ -1,0 +1,31 @@
+# Argo CD에게 Git repo/path를 알려주는 정의
+
+# 리소스가 어느 API 그룹/버전에 속하는지 알려줌
+apiVersion: argoproj.io/v1alpha1
+
+# k8s의 기본 리소스가 아니라, Argo CD가 추가한 커스텀 리소스 = Argo CD가 관리할 배포 단위
+kind: Application
+
+metadata:
+  name: nginx-app # Application 리소스의 이름
+  namespace: argocd
+
+# Argo CD 안의 Project를 지정
+spec:
+  project: default
+
+  # 무엇을 배포할 것인가
+  source:
+    repoURL: https://github.com/minmings111/k8s-practice.git
+    targetRevision: main
+    path: apps/nginx # Kubernetes YAML이 있는 폴더
+
+  # 어디에 배포할 것인가
+  destination:
+    server: https://kubernetes.default.svc # 클러스터 내부에서 Kubernetes API 서버를 가리키는 기본 주소
+    namespace: default # nginx Pod가 배포될 위치
+
+  syncPolicy:
+    automated:
+      prune: true # Git에서 리소스를 삭제하면, 클러스터에서도 삭제 허용
+      selfHeal: true
