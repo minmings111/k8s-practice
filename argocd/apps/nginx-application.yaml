@@ -1,4 +1,5 @@
 # Argo CD에게 Git repo/path를 알려주는 정의
+# app-of-apps 구조에서는 root-app이 이 파일을 읽어서 nginx-app을 만들어줌
 
 # 리소스가 어느 API 그룹/버전에 속하는지 알려줌
 apiVersion: argoproj.io/v1alpha1
@@ -28,4 +29,4 @@ spec:
   syncPolicy:
     automated:
       prune: true # Git에서 리소스를 삭제하면, 클러스터에서도 삭제 허용
-      selfHeal: true
+      selfHeal: true # 클러스터에서 수동 변경이 생기면 Git 상태로 되돌림
