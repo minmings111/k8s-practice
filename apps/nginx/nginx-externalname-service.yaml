@@ -1,0 +1,15 @@
+apiVersion: v1 # ExternalName도 Service의 한 종류라서 v1을 사용
+kind: Service
+
+metadata:
+  name: external-nginx-service
+  namespace: web
+
+spec:
+  # ExternalName은 Pod로 트래픽을 보내는 Service가 아님
+  # 클러스터 내부의 Service 이름을 외부 DNS 이름으로 연결하는 타입
+  type: ExternalName
+
+  # web namespace 안의 Pod가 external-nginx-service로 접근하면
+  # Kubernetes DNS가 nginx.org를 바라보도록 응답함
+  externalName: nginx.org
