@@ -6,7 +6,9 @@ metadata:
   namespace: web # nginx-pod가 있는 namespace와 동일해야 selector로 Pod를 찾을 수 있음
 
 spec:
-  type: NodePort # 각 노드의 포트를 열어서 클러스터 외부에서도 접근할 수 있게 하는 Service 타입
+  # 클라우드 로드밸런서를 통해 외부 IP를 받는 Service 타입
+  # 로컬 kind/Docker Desktop 환경에서는 별도 로드밸런서 구현이 없으면 EXTERNAL-IP가 pending일 수 있음
+  type: LoadBalancer
 
   # 이 Service가 트래픽을 보낼 Pod를 label로 찾음
   # nginx-pod의 metadata.labels.app 값과 맞아야 함
@@ -19,6 +21,3 @@ spec:
 
       # 실제 nginx 컨테이너가 열고 있는 포트
       targetPort: 80
-
-      # 노드에서 외부로 열어줄 포트. 보통 30000-32767 범위를 사용
-      nodePort: 30080
