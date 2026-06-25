@@ -3,14 +3,11 @@ kind: Pod
 
 metadata:
   name: redis-pod
+  namespace: cache
   labels:
     app: redis
 
 spec:
-  # 이 Pod는 app-slot=redis 라벨이 붙은 노드에만 배치됨
-  nodeSelector:
-    app-slot: redis
-
   containers:
     - name: redis-container
       image: redis:7-alpine

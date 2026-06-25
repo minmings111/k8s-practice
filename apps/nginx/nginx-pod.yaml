@@ -3,13 +3,10 @@ kind: Pod # 여러 리소스가 있는데, 그 중에서도 pod
 
 metadata:
   name: nginx-pod
+  namespace: web
 
 # pod 내부에 대한 세부정보
 spec:
-  # 이 Pod는 app-slot=nginx 라벨이 붙은 노드에만 배치됨
-  nodeSelector:
-    app-slot: nginx
-
   containers: # pod에 들어가는 컨테이너 정보
     - name: nginx-container
       image: nginx:latest # 컨테이너를 띄우기 위한 이미지:태그(태그는 생략 가능)

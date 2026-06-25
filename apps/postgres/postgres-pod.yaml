@@ -3,6 +3,7 @@ kind: Pod
 
 metadata:
   name: postgres-pod
+  namespace: database
   labels:
     app: postgres
 
