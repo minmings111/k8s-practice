@@ -1,0 +1,178 @@
+# Argo CD에게 OpenTelemetry Collector Helm chart를 설치하라고 알려주는 Application
+# Collector는 앱/인프라에서 발생한 metrics, traces, logs를 받아서 다른 관측 도구로 넘겨주는 수집기 역할을 한다.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: opentelemetry-collector-app
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.159.0
+
+    helm:
+      releaseName: otel-collector
+      values: |
+        mode: deployment
+        replicaCount: 1
+
+        fullnameOverride: otel-collector
+
+        image:
+          repository: otel/opentelemetry-collector-k8s
+
+        resources:
+          limits:
+            cpu: 250m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+
+        service:
+          enabled: true
+          type: ClusterIP
+
+          # Prometheus Helm chart는 이 annotation이 붙은 Service endpoint를 자동으로 scrape한다.
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/path: /metrics
+            prometheus.io/port: "8889"
+
+        ports:
+          # 앱이 OpenTelemetry Protocol gRPC 방식으로 telemetry를 보낼 때 사용하는 포트
+          otlp:
+            enabled: true
+            containerPort: 4317
+            servicePort: 4317
+            protocol: TCP
+            appProtocol: grpc
+
+          # 앱이 OpenTelemetry Protocol HTTP 방식으로 telemetry를 보낼 때 사용하는 포트
+          otlp-http:
+            enabled: true
+            containerPort: 4318
+            servicePort: 4318
+            protocol: TCP
+
+          # Collector 자신의 내부 상태 메트릭을 노출하는 포트
+          metrics:
+            enabled: true
+            containerPort: 8888
+            servicePort: 8888
+            protocol: TCP
+
+          # Collector가 Prometheus에게 넘겨줄 메트릭을 노출하는 포트
+          prometheus:
+            enabled: true
+            containerPort: 8889
+            servicePort: 8889
+            protocol: TCP
+
+          jaeger-compact:
+            enabled: false
+          jaeger-thrift:
+            enabled: false
+          jaeger-grpc:
+            enabled: false
+          zipkin:
+            enabled: false
+
+        config:
+          extensions:
+            health_check:
+              endpoint: ${env:MY_POD_IP}:13133
+
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: ${env:MY_POD_IP}:4317
+                http:
+                  endpoint: ${env:MY_POD_IP}:4318
+
+            # 실습 확인용: Collector가 자기 자신의 내부 메트릭을 수집한다.
+            prometheus:
+              config:
+                scrape_configs:
+                  - job_name: opentelemetry-collector-self
+                    scrape_interval: 10s
+                    static_configs:
+                      - targets:
+                          - ${env:MY_POD_IP}:8888
+
+          processors:
+            memory_limiter:
+              check_interval: 5s
+              limit_percentage: 80
+              spike_limit_percentage: 25
+            batch: {}
+
+          exporters:
+            debug: {}
+
+            # Prometheus는 push를 받지 않고 pull로 가져가므로,
+            # Collector가 /metrics 엔드포인트를 열어 Prometheus가 긁어갈 수 있게 한다.
+            prometheus:
+              endpoint: ${env:MY_POD_IP}:8889
+
+          service:
+            telemetry:
+              metrics:
+                readers:
+                  - pull:
+                      exporter:
+                        prometheus:
+                          host: ${env:MY_POD_IP}
+                          port: 8888
+
+            extensions:
+              - health_check
+
+            pipelines:
+              metrics:
+                receivers:
+                  - otlp
+                  - prometheus
+                processors:
+                  - memory_limiter
+                  - batch
+                exporters:
+                  - prometheus
+                  - debug
+
+              traces:
+                receivers:
+                  - otlp
+                processors:
+                  - memory_limiter
+                  - batch
+                exporters:
+                  - debug
+
+              logs:
+                receivers:
+                  - otlp
+                processors:
+                  - memory_limiter
+                  - batch
+                exporters:
+                  - debug
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
