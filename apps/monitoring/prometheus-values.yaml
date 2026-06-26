@@ -28,8 +28,17 @@ alertmanager:
   enabled: true
   persistence:
     enabled: true
+  service:
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/path: /metrics
+      prometheus.io/port: "9093"
 
 # 짧게 실행되고 종료되는 batch job이 메트릭을 잠깐 밀어넣을 때 사용하는 컴포넌트.
 # 일반 앱은 보통 Prometheus가 pull로 가져가지만, batch job은 pushgateway를 거쳐 전달하기도 한다.
 prometheus-pushgateway:
   enabled: true
+  serviceAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "9091"
