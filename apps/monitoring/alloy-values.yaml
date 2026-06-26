@@ -1,0 +1,83 @@
+# grafana/alloy Helm chart에 넘기는 설정값
+# Alloy는 Kubernetes 로그와 이벤트를 읽어서 Loki로 전달하는 수집기다.
+
+controller:
+  # loki.source.kubernetes는 Kubernetes API를 통해 Pod 로그를 읽는다.
+  # DaemonSet으로 여러 개 띄우면 같은 Pod 로그가 중복 수집될 수 있으므로 실습에서는 Deployment 1개로 둔다.
+  type: deployment
+  replicas: 1
+
+service:
+  enabled: true
+  type: ClusterIP
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: "12345"
+
+alloy:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  configMap:
+    content: |
+      // Kubernetes Pod 목록을 Kubernetes API에서 발견한다.
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Loki에서 보기 좋은 label로 Kubernetes metadata를 정리한다.
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_name"]
+          separator     = "/"
+          target_label  = "job"
+        }
+      }
+
+      // Kubernetes API의 pods/log 엔드포인트를 통해 Pod 로그를 읽는다.
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      // Kubernetes Event도 Loki로 보낸다.
+      // 예: Scheduling, Pulling image, FailedMount 같은 이벤트성 로그.
+      loki.source.kubernetes_events "cluster_events" {
+        log_format = "json"
+        forward_to = [loki.write.loki.receiver]
+      }
+
+      // 수집한 로그를 Loki gateway로 보낸다.
+      loki.write "loki" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+        }
+      }

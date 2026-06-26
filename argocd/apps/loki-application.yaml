@@ -1,0 +1,39 @@
+# Argo CD에게 Grafana Loki Helm chart를 설치하라고 알려주는 Application
+# Loki는 Kubernetes Pod 로그와 이벤트 로그를 저장하고 조회하는 로그 저장소 역할을 한다.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: loki-app
+  namespace: argocd
+
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 7.0.0
+
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/apps/monitoring/loki-values.yaml
+
+    # 위 valueFiles에서 $values로 참조할 Git 저장소
+    - repoURL: https://github.com/minmings111/k8s-practice.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true

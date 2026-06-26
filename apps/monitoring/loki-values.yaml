@@ -1,0 +1,127 @@
+# grafana/loki Helm chart에 넘기는 설정값
+# Loki는 로그를 저장하고, LogQL로 조회할 수 있게 해주는 저장소다.
+
+# 로컬 실습에서는 여러 컴포넌트로 쪼개는 분산 모드보다 단일 Loki 프로세스가 이해하기 쉽다.
+deploymentMode: SingleBinary
+
+loki:
+  # 로컬 실습에서는 멀티 테넌시 인증을 끈다.
+  # 끄면 Alloy가 별도 X-Scope-OrgID 헤더 없이 Loki로 로그를 보낼 수 있다.
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  # Loki 3.x 계열은 schema 설정이 필요하다.
+  # TSDB 저장 방식과 v13 schema를 사용한다.
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+  storage:
+    type: s3
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+
+  ingester:
+    chunk_encoding: snappy
+
+  querier:
+    max_concurrent: 2
+
+  # Loki chart가 제공하는 간단한 UI를 /ui 경로로 열 수 있게 한다.
+  ui:
+    enabled: true
+
+singleBinary:
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  extraEnv:
+    - name: GOMEMLIMIT
+      value: 800MiB
+
+  persistence:
+    enabled: true
+    size: 2Gi
+
+  service:
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/path: /metrics
+      prometheus.io/port: "3100"
+
+# Loki 앞단의 HTTP gateway.
+# Alloy와 브라우저 UI는 이 gateway를 통해 Loki에 접근한다.
+gateway:
+  enabled: true
+  service:
+    type: ClusterIP
+
+# 로컬 실습에서는 memcached 캐시를 끄고 전체 리소스 사용량을 줄인다.
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false
+
+# Loki의 S3 호환 저장소로 MinIO를 같이 띄운다.
+# 클라우드 S3 없이도 Loki의 object storage 구성을 연습할 수 있다.
+minio:
+  enabled: true
+  persistence:
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# SingleBinary 모드에서는 read/write/backend 같은 분산 모드 컴포넌트는 0개로 둔다.
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0
+
+# Loki canary는 테스트 로그를 계속 보내서 Loki가 정상으로 받고 조회되는지 확인한다.
+lokiCanary:
+  enabled: true
+  push: true
