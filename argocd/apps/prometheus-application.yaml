@@ -12,28 +12,22 @@ metadata:
 spec:
   project: default
 
-  # 무엇을 설치할 것인가
-  source:
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: prometheus
-    targetRevision: 29.13.0
+  # sources를 쓰면 외부 Helm chart와 Git 안의 values 파일을 함께 사용할 수 있다.
+  sources:
+    # 무엇을 설치할 것인가
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: prometheus
+      targetRevision: 29.13.0
 
-    helm:
-      releaseName: prometheus
-      values: |
-        # 로컬 실습에서는 디스크 영속성보다 설치 성공과 구조 확인을 우선함
-        server:
-          persistentVolume:
-            enabled: false
-          service:
-            type: ClusterIP
+      helm:
+        releaseName: prometheus
+        valueFiles:
+          - $values/apps/monitoring/prometheus-values.yaml
 
-        # 처음에는 Prometheus 서버 중심으로 가볍게 보기 위해 부가 컴포넌트 일부를 끔
-        alertmanager:
-          enabled: false
-
-        prometheus-pushgateway:
-          enabled: false
+    # 위 valueFiles에서 $values로 참조할 Git 저장소
+    - repoURL: https://github.com/minmings111/k8s-practice.git
+      targetRevision: main
+      ref: values
 
   # 어디에 설치할 것인가
   destination:
