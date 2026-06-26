@@ -25,7 +25,8 @@ spec:
         fullnameOverride: otel-collector
 
         image:
-          repository: otel/opentelemetry-collector-k8s
+          # prometheus exporter를 사용하기 위해 contrib 배포판을 사용한다.
+          repository: otel/opentelemetry-collector-contrib
 
         resources:
           limits:
